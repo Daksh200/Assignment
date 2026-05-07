@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/assignment
+    username: assignment
+    password: assignment
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+  redis:
+    host: localhost
+    port: 6379
+
+server:
+  port: 8080
+
+app:
+  notification:
+    cooldownMinutes: 15
+    cronSeconds: 300  # every 5 minutes
+
+logging:
+  level:
+    org.hibernate.SQL: warn
+

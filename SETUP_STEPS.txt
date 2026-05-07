@@ -1,0 +1,51 @@
+SETUP_STEPS.txt - Windows (Spring Boot + Docker + Redis + Postgres)
+
+1) Install Java 17 JDK
+- Download: Temurin 17 JDK (recommended) or any OpenJDK 17 JDK.
+- Install it. Example common folder:
+  C:\Program Files\Java\jdk-17
+
+2) Ensure JAVA_HOME is set for the current PowerShell session
+- Open a NEW PowerShell window (important).
+- Run:
+  $env:JAVA_HOME="C:\Program Files\Java\jdk-17"
+  $env:Path="$env:JAVA_HOME\bin;$env:Path"
+
+3) Verify Java works
+- Run:
+  java -version
+
+4) Install Docker Desktop (if not installed)
+- Start Docker Desktop.
+
+5) Start Postgres + Redis
+- Open PowerShell and go to repo root:
+  cd c:/Users/daksh/Desktop/project
+- Run:
+  docker compose up -d
+
+6) Start the Spring Boot app
+- From repo root:
+  cd c:/Users/daksh/Desktop/project
+- Run:
+  .\mvnw.cmd spring-boot:run
+
+7) Test endpoints
+- Service should be on: http://localhost:8080
+- Endpoints:
+  POST /api/posts
+  POST /api/posts/{postId}/comments
+  POST /api/posts/{postId}/like
+
+Troubleshooting
+A) If `java -version` fails:
+- Re-check Java install folder.
+- Make sure bin folder is correct: <JAVA_HOME>\bin
+
+B) If `docker compose up -d` fails:
+- Ensure Docker Desktop is running.
+
+C) If `mvnw.cmd` fails with java not recognized:
+- Close PowerShell and reopen (PATH changes only apply to new shells).
+- Re-run the JAVA_HOME commands.
+

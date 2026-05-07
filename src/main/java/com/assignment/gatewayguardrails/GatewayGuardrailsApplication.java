@@ -1,0 +1,14 @@
+package com.assignment.gatewayguardrails;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+@SpringBootApplication
+@EnableScheduling
+public class GatewayGuardrailsApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(GatewayGuardrailsApplication.class, args);
+    }
+}
+
