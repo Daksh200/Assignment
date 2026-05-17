@@ -75,23 +75,27 @@ public class PostService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "authorType must be USER or BOT");
         }
 
-        // Determine botId/humanId for cooldown and notification logic.
+        // Determine botId/humanId for cooldown + horizontal cap.
+        // Spec intent:
+        // - Cooldown is between (BOT interacting) and (HUMAN target/owner).
+        // - Horizontal cap is based on total bot replies/comments allowed on this post.
         long botId;
         long humanId;
         int viralityDelta;
 
         if (authorIsBot) {
             botId = req.authorId();
-            // For a BOT comment: the cooldown is between the bot author and the human who owns the post.
-            // We don't have a post owner in schema, so we use the comment target post's author as the human.
-            // If the post author is a bot, we treat the post author as the humanId per test harness.
-            humanId = resolveHumanIdForCooldown(post);
+            // Human is the author of the post for bot replies.
+            humanId = post.getAuthorId();
             viralityDelta = 1; // Bot reply
         } else {
-            botId = resolveBotIdForCooldown(post);
+            // For human comments, cooldown is between the (bot interacting) and the (human).
+            // We treat the post author as the bot counterpart.
+            botId = post.getAuthorId();
             humanId = req.authorId();
             viralityDelta = 50; // Human comment
         }
+
 
         // Atomic locks: cooldown + horizontal cap
         RedisGuardrailsService.GuardrailsResult guardrails = redisGuardrailsService.tryBotInteraction(
@@ -188,14 +192,6 @@ public class PostService {
         );
     }
 
-    private long resolveHumanIdForCooldown(Post post) {
-        // If post author is human: use it. Otherwise use it as well (best-effort with current schema).
-        return post.getAuthorId();
-    }
-
-    private long resolveBotIdForCooldown(Post post) {
-        // If post author is a bot: use it. Otherwise use 0 as placeholder; guardrails will enforce cooldown/horizontal caps.
-        return post.getAuthorId();
-    }
 }
+
 

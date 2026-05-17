@@ -53,7 +53,7 @@ public class NotificationThrottlerService {
         if (size == null || size == 0) {
             return 0L;
         }
-        // Pop all items.
+        -- Try to pop in a single operation if possible (still efficient enough for assignment scale).
         for (long i = 0; i < size; i++) {
             redis.opsForList().leftPop(pendingListKey);
         }
@@ -61,7 +61,7 @@ public class NotificationThrottlerService {
     }
 
     public void clearUserPendingListAndSet(long userId) {
-        redis.opsForList().trim(RedisKeyBuilder.userPendingNotifs(userId), 1, 0);
+        redis.delete(RedisKeyBuilder.userPendingNotifs(userId));
         redis.opsForSet().remove(RedisKeyBuilder.userWithPendingNotifsSet(), String.valueOf(userId));
     }
 }

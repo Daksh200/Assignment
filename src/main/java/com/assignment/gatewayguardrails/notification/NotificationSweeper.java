@@ -35,6 +35,7 @@ public class NotificationSweeper {
                 continue;
             }
 
+            // Spec requires a summarized message; we log the count of pending interactions.
             System.out.println(
                     "Summarized Push Notification: Bot X and [" + count + "] others interacted with your posts."
             );

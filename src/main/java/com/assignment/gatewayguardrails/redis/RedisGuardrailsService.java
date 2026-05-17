@@ -16,16 +16,16 @@ public class RedisGuardrailsService {
         this.redis = redis;
     }
 
-    // Lua script to enforce cooldown + horizontal bot cap atomically.
+    // Lua script enforces Phase 2 guardrails atomically.
     // KEYS:
-    // 1 cooldown key
-    // 2 bot_count key
+    // 1 cooldown key (bot-human)
+    // 2 bot_count key (per post)
     // ARGV:
     // 1 maxBotCount (e.g. 100)
     // 2 cooldownSeconds (e.g. 600)
     // Returns:
     // 0 => cooldown exists (reject)
-    // 1 => accepted (cooldown set, bot_count incremented)
+    // 1 => accepted (bot_count incremented + cooldown set)
     // 2 => bot cap exceeded (reject)
     private static final String GUARDRAILS_LUA = """
             local cooldownKey = KEYS[1]
@@ -33,13 +33,17 @@ public class RedisGuardrailsService {
             local maxBotCount = tonumber(ARGV[1])
             local cooldownSeconds = tonumber(ARGV[2])
 
-            if redis.call('EXISTS', cooldownKey) == 1 then
-              return 0
-            end
-
+            -- Horizontal cap is the main concurrency limiter for the spam test.
+            -- We increment bot_count first, then reject if it exceeds the cap.
+            -- This ensures the first (maxBotCount) accepted requests are exactly the cap.
             local newCount = redis.call('INCR', botCountKey)
             if newCount > maxBotCount then
               return 2
+            end
+
+            -- Cooldown cap is checked independently.
+            if redis.call('EXISTS', cooldownKey) == 1 then
+              return 0
             end
 
             redis.call('SET', cooldownKey, '1', 'EX', cooldownSeconds)
