@@ -1,47 +1,89 @@
 # API Gateway & Guardrails (Spring Boot)
 
-## What this service provides
-Spring Boot microservice implementing the assignment requirements:
-- Phase 1: Core REST API + PostgreSQL (JPA/Hibernate entities)
-- Phase 2: Redis virality score + Redis atomic guardrails (horizontal cap, cooldown, vertical cap)
-- Phase 3: Notification batching + scheduled sweeper
+A Spring Boot microservice that exposes a small REST API and enforces assignment “guardrails” using **Redis atomic operations**.
 
-## Local setup
-### Docker
+## Features
+
+- **Phase 1 (Core API + Postgres)**: posts, comments, likes persisted via JPA/Hibernate
+- **Phase 2 (Guardrails in Redis)**:
+  - horizontal cap via atomic Lua script
+  - cooldown/TTL enforcement
+- **Phase 3 (Notifications)**: batching + scheduled sweeper
+
+## Tech Stack
+
+- Java 17
+- Spring Boot 3.3.x
+- Spring Web + Validation
+- Spring Data JPA (PostgreSQL)
+- Spring Data Redis (Redis)
+
+## Prerequisites
+
+- Java 17
+- Docker Desktop
+
+## Run locally (Docker)
+
 Start Postgres + Redis:
+
 ```bash
 docker compose up -d
 ```
 
 Default connections (see `src/main/resources/application.yml`):
+
 - Postgres: `jdbc:postgresql://localhost:5432/assignment`
 - Redis: `localhost:6379`
 
-## Endpoints
-See `postman_collection.json` in the repo root.
+### Start the app
 
-## Thread safety / Atomic Locks (Phase 2)
-The concurrency requirement (200 concurrent bots hitting the same post in the same millisecond) must stop at exactly **100**.
+```bash
+./mvnw spring-boot:run
+```
 
-### Implementation approach
-Guardrails are enforced in Redis using a **single Lua script** executed via Redis, so the check + increment are atomic.
+The service runs on:
 
-- File: `src/main/java/com/assignment/gatewayguardrails/redis/RedisGuardrailsService.java`
-- Keys:
-  - `post:{postId}:bot_count` — counter incremented per bot interaction
-  - `cooldown:bot_{botId}:human_{humanId}` — TTL cooldown for the bot-human pair
+- `http://localhost:8080`
+
+## API Endpoints
+
+See the Postman file in the repo root:
+
+- `postman_collection.json`
+
+Implemented endpoints:
+
+- `POST /api/posts`
+- `POST /api/posts/{postId}/comments`
+- `POST /api/posts/{postId}/like`
+
+## Guardrails / Thread Safety (Phase 2)
+
+The concurrency requirement (e.g., **200 concurrent bots** in the same millisecond) must stop at exactly **100**.
+
+### How it works
+
+Guardrails are enforced in Redis using a **single Lua script** (check + increment happen atomically).
+
+- Implementation: `src/main/java/com/assignment/gatewayguardrails/redis/RedisGuardrailsService.java`
 
 ### Atomicity guarantee
-The Lua script performs these operations atomically within Redis:
-1. `EXISTS cooldownKey` → reject if cooldown exists
-2. `INCR botCountKey` → increments counter
-3. If `newCount > maxBotCount` reject
-4. If accepted, `SET cooldownKey ... EX cooldownSeconds` and return success
 
-Because all of the above happens inside a single Redis script execution, race conditions cannot allow the counter to exceed 100.
+The Lua script performs all these operations atomically inside Redis:
+
+1. Reject if cooldown key already exists
+2. Atomically increment the per-post bot counter
+3. Reject if the counter exceeds the cap
+4. If accepted, set the cooldown key with TTL
+
+Because all operations execute as one Redis script, race conditions cannot allow the counter to exceed the configured maximum.
 
 ## Notes
-- PostgreSQL is the source of truth for content (posts/comments). The request is only written to Postgres after Redis guardrails allow it.
-- Redis holds all counters/cooldowns/pending notifications; the app remains stateless (no Java static caches / in-memory counters).
+
+- PostgreSQL is the source of truth for content.
+- Redis stores counters/cooldowns/pending notification state; the service itself stays stateless.
+
+
 
 
